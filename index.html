@@ -1439,10 +1439,10 @@ function playSampleLoop(s, buffer, level, fade) {
   let next = ctx.currentTime + 0.06;
 
   const fire = () => {
-    if (!s.alive()) return;
-    const src = ctx.createBufferSource();
+    if (!s.alive() || !isPlaying) return;
+    const src = s.add(ctx.createBufferSource());
     src.buffer = buffer;
-    const g = ctx.createGain();
+    const g = s.add(ctx.createGain());
 
     g.gain.setValueAtTime(0.0001, next);
     g.gain.linearRampToValueAtTime(1, next + f);
@@ -1989,9 +1989,49 @@ function decode(arrayBuffer) {
   });
 }
 
+// Some browsers (notably mobile Safari) restrict decodeAudioData to a
+// subset of compressed codecs. Try the full-file decoder first, then a
+// header/type-aware fallback, and always report the actual limitation.
+const MAX_SAMPLE_BYTES = 120 * 1024 * 1024; // hard safety cap: never decode >120 MB into a slot
+const WARN_VIDEO_BYTES = 20 * 1024 * 1024;  // warn above this for video-derived audio
+
+function audioKind(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (ext === 'mp3') return 'MP3';
+  if (ext === 'm4a' || ext === 'm4b') return 'M4A (AAC)';
+  if (ext === 'mp4' || ext === 'm4v' || ext === 'mov') return 'MP4 (video)';
+  if (ext === 'wav' || ext === 'wave') return 'WAV';
+  if (ext === 'ogg' || ext === 'oga') return 'OGG';
+  if (ext === 'flac') return 'FLAC';
+  return ext || 'tuntematon';
+}
+
+function isVideoLike(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return ext === 'mp4' || ext === 'm4v' || ext === 'mov' || ext === 'webm';
+}
+
 async function loadFileIntoSlot(key, file, row) {
   if (!ensureCtx()) { toast('Ääntä ei voi avata tällä laitteella'); return; }
   const state = row.querySelector('.slot-state');
+  const kind = audioKind(file.name);
+
+  // Hard safety cap — never try to decode a huge file into a sound slot.
+  if (file.size > MAX_SAMPLE_BYTES) {
+    state.textContent = 'Syntetisoitu';
+    toast('Liian iso (' + Math.round(file.size / 1048576) + ' MB) — maksimi 120 MB');
+    return;
+  }
+  // Size warning before decoding, as Tomi asked.
+  if (file.size > WARN_VIDEO_BYTES) {
+    const mb = Math.round(file.size / 1048576);
+    if (!window.confirm(kind + ' on ' + mb + ' MB. Tämä voi olla hidas ja raskas laitteella. Ladataanko silti?')) {
+      state.textContent = 'Syntetisoitu';
+      toast('Peruttu');
+      return;
+    }
+  }
+
   state.textContent = 'Ladataan…';
   try {
     const bytes = await file.arrayBuffer();
@@ -2004,7 +2044,7 @@ async function loadFileIntoSlot(key, file, row) {
     if (isPlaying) startScape(currentSound);
   } catch (_) {
     state.textContent = 'Syntetisoitu';
-    toast('Tiedostoa ei voitu lukea — kokeile mp3 tai m4a');
+    toast(kind + ' (mp3/m4a/mp4) ei auennut tässä selaimessa — kokeile WAV tai OGG');
   }
 }
 
