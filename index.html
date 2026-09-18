@@ -878,7 +878,7 @@ input[type="range"]::-moz-range-thumb {
 
   <header class="head">
     <h1 class="brand">Jennoise<span class="dot"></span></h1>
-    <div class="byline">Lahja <span class="sep">·</span> By Thom Force</div>
+    <div class="byline">Rakastan sinua</div>
     <button class="gear" id="gear" aria-label="Asetukset">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -993,7 +993,7 @@ input[type="range"]::-moz-range-thumb {
 
   </main>
 
-  <footer class="foot">Jennille <span class="heart">♡</span> rakkaudella</footer>
+  <footer class="foot">Rakkaudella Tomppelisi</footer>
 </div>
 
 <div class="veil" id="veil"></div>
@@ -1015,6 +1015,7 @@ input[type="range"]::-moz-range-thumb {
   </p>
 
   <button class="done" id="done">Valmis</button>
+  <div class="sheet-version" style="margin-top:18px;font-size:11px;color:var(--ink-faint);text-align:center;letter-spacing:.04em">Jennoise v1.0</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1983,9 +1984,28 @@ function paintSlot(row, key) {
 }
 
 function decode(arrayBuffer) {
+  // Primary path: Web Audio decodeAudioData. On some browsers (mobile
+  // Safari) a single call can fail on a compressed buffer that actually
+  // decodes fine — retry once with a fresh ArrayBuffer view.
   return new Promise((res, rej) => {
-    const p = ctx.decodeAudioData(arrayBuffer, res, rej);
-    if (p && p.then) p.then(res, rej);
+    const attempt = (buf, done) => {
+      try {
+        const p = ctx.decodeAudioData(buf,
+          b => { try { res(b); } catch(_) {} },
+          err => {
+            if (!done) attempt(buf.slice(0), true);
+            else rej(err);
+          });
+        if (p && p.then) p.then(res, err => {
+          if (!done) attempt(buf.slice(0), true);
+          else rej(err);
+        });
+      } catch (e) {
+        if (!done) attempt(buf.slice(0), true);
+        else rej(e);
+      }
+    };
+    attempt(arrayBuffer, false);
   });
 }
 
