@@ -1,0 +1,32 @@
+{
+  "name": "Jennoise",
+  "short_name": "Jennoise",
+  "description": "A gift by Thom Force — for Jenni, with love.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0d9d4",
+  "theme_color": "#f0d9d4",
+  "categories": ["music", "lifestyle", "health"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
