@@ -1,7 +1,7 @@
 // Jennoise service worker
 // Caches the app on install so it works offline.
 
-const CACHE = 'jennoise-v6';
+const CACHE = 'jennoise-v7';
 const FILES = [
   './',
   './index.html',

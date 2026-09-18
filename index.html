@@ -1336,6 +1336,56 @@ function layerWind(s, { level = 0.4, rate = 0.06, cut = 520, sweep = 340, whistl
   return out;
 }
 
+// Branches — a heavy creak (bending wood) with a scatter of lighter twig
+// snaps on top. Used as the storm's signature so it reads as wind in trees
+// rather than more rain.
+function fireBranches(level) {
+  const now = ctx.currentTime + rnd(0.01, 0.06);
+  // one big creak
+  const creak = ctx.createBufferSource();
+  creak.buffer = noiseBuffer('brown');
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.setValueAtTime(rnd(380, 620), now);
+  lp.frequency.exponentialRampToValueAtTime(rnd(120, 220), now + rnd(0.5, 1.3));
+  lp.Q.value = rnd(2, 5);
+  const g = ctx.createGain();
+  const dur = rnd(0.6, 1.6);
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(level * rnd(0.5, 0.9), now + 0.02);
+  g.gain.linearRampToValueAtTime(level * rnd(0.2, 0.4), now + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  creak.connect(lp); lp.connect(g); g.connect(loCut);
+  creak.start(now); creak.stop(now + dur + 0.05);
+
+  // scatter of small twig snaps
+  const n = 1 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++) {
+    const t = now + rnd(0.1, dur);
+    const twig = ctx.createBufferSource();
+    twig.buffer = noiseBuffer('white');
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = rnd(1800, 4500);
+    bp.Q.value = rnd(6, 14);
+    const tg = ctx.createGain();
+    const td = rnd(0.02, 0.05);
+    tg.gain.setValueAtTime(0.0001, t);
+    tg.gain.exponentialRampToValueAtTime(level * rnd(0.2, 0.45), t + 0.002);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + td);
+    twig.connect(bp); bp.connect(tg); tg.connect(loCut);
+    twig.start(t, rnd(0, 2)); twig.stop(t + td + 0.02);
+  }
+}
+
+function scheduleBranches(s, level) {
+  const run = () => {
+    if (!s.alive()) return;
+    fireBranches(level);
+    s.timer(setTimeout(run, rnd(2600, 8000)));
+  };
+  s.timer(setTimeout(run, rnd(600, 2200)));
+}
+
 // Surf — swells that never line up, plus foam on the crest.
 function layerWaves(s, { level = 0.5 } = {}) {
   const out = s.add(ctx.createGain());
@@ -1697,8 +1747,8 @@ function startScape(type) {
 
   } else if (type === 'storm') {
     layerWind(s,  { level: 0.44, rate: 0.05, cut: 640, sweep: 460, whistle: 0.9 });
-    layerRain(s,  { level: 0.34, hiss: 1.3, patter: 1.1, body: 0.4, freq: 1900 });
     layerWaves(s, { level: 0.52 });
+    scheduleBranches(s, 0.5);
 
   } else if (type === 'thunder') {
     layerRain(s,   { level: 0.4, hiss: 0.7, patter: 1, body: 0.7, freq: 1250 });
